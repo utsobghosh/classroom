@@ -53,6 +53,28 @@
   #status { text-align:center; color:var(--muted); padding:60px 0; }
   html { -webkit-text-size-adjust:100%; }
   .att { -webkit-tap-highlight-color:transparent; }
+  .mine { margin-top:16px; padding-top:12px; border-top:1px solid var(--line); }
+  .mh { font-size:.85rem; font-weight:500; color:var(--muted); margin-bottom:10px; }
+  .ver { margin:24px 10px 0; font-size:.7rem; color:var(--muted); }
+  .pv { position:fixed; inset:0; z-index:50; background:#2b2c2f; display:none; flex-direction:column; }
+  .pv.on { display:flex; }
+  .pvbar { display:flex; align-items:center; gap:6px; padding:8px 10px; background:#202124; color:#e8eaed; }
+  .pvbar .ttl { flex:1; min-width:0; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pvbar small { color:#9aa0a6; white-space:nowrap; }
+  .pvbar button { border:0; background:#3c4043; color:#fff; border-radius:6px; padding:7px 11px; font:inherit; font-size:.85rem; cursor:pointer; }
+  .pvbody { flex:1; overflow:auto; padding:12px 8px; -webkit-overflow-scrolling:touch; }
+  .pvpage { display:block; margin:0 auto 12px; background:#fff; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+  .dlg { position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.5); display:none; align-items:flex-end; justify-content:center; }
+  .dlg.on { display:flex; }
+  .sheet { background:var(--card); color:var(--text); width:100%; max-width:420px; border-radius:14px 14px 0 0; padding:18px; }
+  .sheet b { display:block; margin-bottom:12px; word-break:break-word; font-weight:500; }
+  .sheet button { display:block; width:100%; margin-top:8px; padding:12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--text); font:inherit; cursor:pointer; }
+  .sheet button.p { background:#1a73e8; border-color:#1a73e8; color:#fff; }
+  @media (min-width:600px) { .dlg { align-items:center; } .sheet { border-radius:14px; } }
+  .pvwait { color:#e8eaed; text-align:center; margin-top:20vh; font-size:.95rem; padding:0 20px; }
+  .spin { width:40px; height:40px; border:4px solid #5f6368; border-top-color:#8ab4f8; border-radius:50%; animation:sp .9s linear infinite; margin:0 auto 14px; }
+  @keyframes sp { to { transform:rotate(360deg); } }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#323232; color:#fff; padding:10px 16px; border-radius:8px; font-size:.9rem; z-index:70; display:none; max-width:90%; text-align:center; }
   .scrim { display:none; }
   @media (max-width:520px) {
     .brand { display:none; }
@@ -79,14 +101,20 @@
   <div class="crumb"><b id="cName"></b><small id="cSec"></small></div>
 </header>
 <div class="tabs"><button id="tStream" class="on">Stream</button><button id="tWork">Classwork</button></div>
-<aside id="side"><h4>Enrolled</h4><div id="list"></div></aside>
+<aside id="side"><h4>Enrolled</h4><div id="list"></div><div class="ver">Page version 11</div></aside>
 <div class="scrim" id="scrim"></div>
 <main><div class="wrap"><div id="status">Loading…</div><div id="content"></div></div></main>
+<div id="toast"></div>
+<div class="dlg" id="dlg"><div class="sheet"><b id="dlgName"></b>
+  <button class="p" id="dlgView">👁 View here</button><button id="dlgDl">⬇ Download</button><button id="dlgCancel">Cancel</button></div></div>
+<div class="pv" id="pv"><div class="pvbar"><span class="ttl" id="pvTitle"></span><small id="pvInfo"></small>
+  <button id="pvZo">−</button><button id="pvZi">+</button><button id="pvDl">⬇ Download</button><button id="pvX">✕</button></div>
+  <div class="pvbody" id="pvBody"></div></div>
 <script>
 const API = 'https://script.google.com/macros/s/AKfycbwAQOSjMXgUlgIFlHEC2xVanGQgx53b17zXWTNCT0fW3ZtIwge9uapEVXBDImFhkzuUhA/exec';
 const DEFAULT_CLASS = 'Math 201';   // class opened first (part of its name)
 
-const api = params => fetch(API + '?' + new URLSearchParams(params))
+const api = params => fetch(API + '?' + new URLSearchParams({ ...params, _: Date.now() }), { cache:'no-store' })
   .then(r => r.json()).then(d => { if (d && d.error) throw new Error(d.error); return d; });
 const $ = id => document.getElementById(id);
 const status = m => ($('status').textContent = m || '');
@@ -141,7 +169,7 @@ function attachments(files) {
     info.appendChild(sub);
     card.appendChild(info);
     card.appendChild(el('div', { className:'thumb', style:'background:' + color }, label));
-    if (!link) card.onclick = () => openFile(f.id, sub, label);
+    if (!link) card.onclick = () => choose(f, sub, label);
     box.appendChild(card);
   });
   return box;
@@ -162,6 +190,14 @@ function post(i) {
   const body = stream ? (i.kind === 'Error' ? i.title : i.text) : i.text;
   if (body) p.appendChild(el('div', { className:'text' }, body));
   if (i.files.length) p.appendChild(attachments(i.files));
+  if (i.mine && (i.mine.files.length || i.mine.answer || i.mine.state === 'TURNED_IN' || i.mine.state === 'RETURNED')) {
+    const m = el('div', { className:'mine' });
+    const st = { TURNED_IN:'Turned in', RETURNED:'Returned' }[i.mine.state] || 'Assigned';
+    m.appendChild(el('div', { className:'mh' }, 'Your work · ' + st + (i.mine.late ? ' · Late' : '') + (i.mine.grade ? ' · ' + i.mine.grade : '')));
+    if (i.mine.answer) m.appendChild(el('div', { className:'text' }, i.mine.answer));
+    if (i.mine.files.length) m.appendChild(attachments(i.mine.files));
+    p.appendChild(m);
+  }
   return p;
 }
 
@@ -195,29 +231,140 @@ $('scrim').onclick = () => document.body.classList.remove('nav');
 
 const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || matchMedia('(pointer:coarse)').matches;
 
-function openFile(id, sub, label) {
-  // Desktop: preview in a new tab. Phones: download so the device's own viewer opens it.
-  const win = IS_MOBILE ? null : window.open('', '_blank');
-  sub.textContent = 'Loading…';
-  api({ action:'file', id })
-    .then(f => {
-      const bytes = Uint8Array.from(atob(f.data), c => c.charCodeAt(0));
-      const url = URL.createObjectURL(new Blob([bytes], { type:f.mime }));
-      const viewable = /^(application\/pdf|image\/|text\/)/.test(f.mime);
-      if (win && viewable) win.location = url;
-      else {
-        if (win) win.close();
-        const a = el('a', { href:url, download:f.name });
-        document.body.appendChild(a); a.click(); a.remove();
-      }
-      sub.textContent = label;
-    })
-    .catch(e => { if (win) win.close(); sub.textContent = label; status('Could not open file: ' + e.message); });
+const mb = n => (n / 1048576).toFixed(1) + ' MB';
+const fileCache = {}, fileOrder = [];   // files already fetched stay in memory (last 6)
+function getFileBlob(id, onProgress) {
+  if (!fileCache[id]) {
+    fileCache[id] = fetchFile(id, onProgress).catch(e => { delete fileCache[id]; throw e; });
+    fileOrder.push(id);
+    while (fileOrder.length > 6) delete fileCache[fileOrder.shift()];
+  }
+  return fileCache[id];
 }
+async function fetchFile(id, onProgress) {
+  const r = await fetch(API + '?' + new URLSearchParams({ action:'file', id, _: Date.now() }), { cache:'no-store' });
+  let txt = '';
+  if (r.body && r.body.getReader && onProgress) {   // read in pieces so we can show progress
+    const rd = r.body.getReader(), dec = new TextDecoder(); let n = 0;
+    for (;;) { const { done, value } = await rd.read(); if (done) break; n += value.length; txt += dec.decode(value, { stream:true }); onProgress(n); }
+  } else txt = await r.text();
+  const d = JSON.parse(txt);
+  if (d.error) throw new Error(d.error);
+  let blob;
+  try { blob = await (await fetch('data:' + d.mime + ';base64,' + d.data)).blob(); }   // native decoding: much faster than a JS loop
+  catch (e) { blob = new Blob([Uint8Array.from(atob(d.data), c => c.charCodeAt(0))], { type:d.mime }); }
+  return { blob, name:d.name, mime:d.mime };
+}
+
+function openFile(id, sub, label, dl) {
+  // Desktop: preview in a new tab. Phones: download so the device's own viewer opens it.
+  const win = (IS_MOBILE || dl) ? null : window.open('', '_blank');
+  sub.textContent = 'Loading…'; toast('Preparing file…');
+  getFileBlob(id, n => toast('Receiving file… ' + mb(n)))
+    .then(f => {
+      const viewable = /^(application\/pdf|image\/|text\/)/.test(f.mime);
+      if (win && viewable) win.location = URL.createObjectURL(f.blob);
+      else { if (win) win.close(); saveBytes(f.blob, f.mime, f.name); }
+      sub.textContent = label; toast('');
+    })
+    .catch(e => { if (win) win.close(); sub.textContent = label; toast(''); status('Could not open file: ' + e.message); });
+}
+
+const PDFJS = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/';
+let pdfLibP = null, pv = null, viewSeq = 0;
+const toast = m => { const t = $('toast'); t.textContent = m; t.style.display = m ? 'block' : 'none'; };
+const addScript = u => new Promise((ok, no) => { const s = document.createElement('script'); s.src = u; s.onload = ok; s.onerror = () => no(new Error('Could not load the PDF viewer')); document.head.appendChild(s); });
+const workerOk = u => new Promise(res => { let w; try { w = new Worker(u); } catch (e) { return res(false); }
+  const t = setTimeout(() => { w.terminate(); res(true); }, 300); w.onerror = () => { clearTimeout(t); w.terminate(); res(false); }; });
+function loadPdfJs() {
+  if (!pdfLibP) pdfLibP = addScript(PDFJS + 'pdf.min.js').then(async () => {
+    const u = URL.createObjectURL(new Blob(['importScripts("' + PDFJS + 'pdf.worker.min.js");'], { type:'text/javascript' }));
+    pdfjsLib.GlobalWorkerOptions.workerSrc = u;
+    if (location.protocol === 'file:' || !(await workerOk(u))) await addScript(PDFJS + 'pdf.worker.min.js');
+    return pdfjsLib;
+  }).catch(e => { pdfLibP = null; throw e; });
+  return pdfLibP;
+}
+function saveBytes(bytes, mime, name) {
+  const u = URL.createObjectURL(new Blob([bytes], { type:mime }));
+  const a = el('a', { href:u, download:name }); document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 4000);
+}
+const isPdfLike = t => /\.pdf$/i.test(t) || !/\.[a-z0-9]{2,5}$/i.test(t);   // PDFs and Google Docs (sent as PDF)
+function choose(f, sub, label) {
+  if (!isPdfLike(f.title)) return openFile(f.id, sub, label);
+  const close = () => $('dlg').classList.remove('on');
+  $('dlgName').textContent = f.title; $('dlg').classList.add('on');
+  $('dlgView').onclick = () => { close(); viewPdf(f, sub, label); };
+  $('dlgDl').onclick = () => { close(); openFile(f.id, sub, label, true); };
+  $('dlgCancel').onclick = close;
+}
+async function viewPdf(f, sub, label) {
+  const my = ++viewSeq, msg = t => { const m = $('pvMsg'); if (m) m.textContent = t; };
+  $('pvTitle').textContent = f.title; $('pvInfo').textContent = '';
+  $('pvBody').innerHTML = '<div class="pvwait"><div class="spin"></div><div id="pvMsg">Getting the file… big PDFs can take a few seconds</div></div>';
+  $('pv').classList.add('on'); document.body.style.overflow = 'hidden';
+  sub.textContent = 'Loading…';
+  try {
+    const [lib, file] = await Promise.all([loadPdfJs(), getFileBlob(f.id, n => msg('Receiving file… ' + mb(n)))]);
+    if (my !== viewSeq) return;
+    if (file.mime !== 'application/pdf') { closePdf(); saveBytes(file.blob, file.mime, file.name); }   // not a PDF: just download
+    else {
+      msg('Preparing pages…');
+      const doc = await lib.getDocument({ data: await file.blob.arrayBuffer() }).promise;
+      if (my !== viewSeq) { doc.destroy(); return; }
+      pv = { doc, blob: file.blob, name: file.name, mime: file.mime, zoom: 1, gen: 0, io: null };
+      $('pvTitle').textContent = file.name; $('pvInfo').textContent = doc.numPages + ' page' + (doc.numPages > 1 ? 's' : '');
+      layoutPdf();
+    }
+  } catch (e) {
+    if (my === viewSeq) $('pvBody').innerHTML = '<div class="pvwait">Could not open this file.<br><small>' + String(e.message || e).replace(/</g, '&lt;') + '</small></div>';
+  }
+  sub.textContent = label;
+}
+function layoutPdf() {
+  const body = $('pvBody'), p = pv, gen = ++p.gen;
+  const w = Math.min(body.clientWidth - 16, 1000) * p.zoom, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  body.innerHTML = ''; if (p.io) p.io.disconnect();
+  p.io = new IntersectionObserver(es => es.forEach(en => {   // draw only pages near the screen, free the rest (saves phone memory)
+    const cv = en.target;
+    if (en.isIntersecting) drawPage(cv, +cv.dataset.n, w, dpr, gen);
+    else if (cv.dataset.done) { cv.width = 1; cv.height = 1; delete cv.dataset.done; }
+  }), { root:body, rootMargin:'700px 0px' });
+  for (let n = 1; n <= p.doc.numPages; n++) {
+    const cv = el('canvas', { className:'pvpage' }); cv.dataset.n = n;
+    cv.style.width = w + 'px'; cv.style.height = (w * 1.414) + 'px';
+    body.appendChild(cv); p.io.observe(cv);
+  }
+}
+async function drawPage(cv, n, w, dpr, gen) {
+  if (cv.dataset.done || cv.dataset.busy) return;
+  cv.dataset.busy = 1;
+  try {
+    const pg = await pv.doc.getPage(n), v0 = pg.getViewport({ scale:1 }), vp = pg.getViewport({ scale:w / v0.width * dpr });
+    if (!pv || gen !== pv.gen) return;
+    cv.width = vp.width; cv.height = vp.height; cv.style.height = (vp.height / dpr) + 'px';
+    await pg.render({ canvasContext:cv.getContext('2d'), viewport:vp }).promise;
+    cv.dataset.done = 1;
+  } catch (e) {} finally { delete cv.dataset.busy; }
+}
+function zoomPdf(d) {
+  if (!pv) return;
+  const b = $('pvBody'), r = b.scrollTop / (b.scrollHeight || 1);
+  pv.zoom = Math.max(.5, Math.min(3, pv.zoom + d)); layoutPdf(); b.scrollTop = r * b.scrollHeight;
+}
+function closePdf() {
+  viewSeq++;
+  if (pv) { pv.io.disconnect(); pv.doc.destroy(); pv = null; }
+  $('pvBody').innerHTML = ''; $('pv').classList.remove('on'); document.body.style.overflow = '';
+}
+$('pvX').onclick = closePdf; $('pvZi').onclick = () => zoomPdf(.25); $('pvZo').onclick = () => zoomPdf(-.25);
+$('pvDl').onclick = () => pv && saveBytes(pv.blob, pv.mime, pv.name);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closePdf(); $('dlg').classList.remove('on'); } });
 
 api({ action:'courses' })
   .then(c => {
-    courses = c; buildSidebar();
+    courses = c; buildSidebar(); setTimeout(() => loadPdfJs().catch(() => {}), 1500);
     const def = c.find(x => (x.name + ' ' + x.section).toLowerCase().includes(DEFAULT_CLASS.toLowerCase())) || c[0];
     if (def) selectCourse(def); else status('No classes found.');
   })
