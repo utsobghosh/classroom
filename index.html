@@ -101,7 +101,7 @@
   <div class="crumb"><b id="cName"></b><small id="cSec"></small></div>
 </header>
 <div class="tabs"><button id="tStream" class="on">Stream</button><button id="tWork">Classwork</button></div>
-<aside id="side"><h4>Enrolled</h4><div id="list"></div><div class="ver">Page version 11</div></aside>
+<aside id="side"><h4>Enrolled</h4><div id="list"></div><div class="ver">Page version 14</div></aside>
 <div class="scrim" id="scrim"></div>
 <main><div class="wrap"><div id="status">Loading…</div><div id="content"></div></div></main>
 <div id="toast"></div>
@@ -175,14 +175,15 @@ function attachments(files) {
   return box;
 }
 
-function post(i) {
+function post(i, inStream) {
   const p = el('div', { className:'post' });
   const head = el('div', { className:'head' });
   const stream = i.kind === 'Announcement' || i.kind === 'Error';
   head.appendChild(el('div', { className:'ico', style:'background:' + (i.kind === 'Assignment' ? '#1967d2' : i.kind === 'Material' ? '#5f6368' : '#d81b60') },
     i.kind === 'Assignment' ? '📋' : i.kind === 'Material' ? '📘' : '📢'));
   const t = el('div');
-  t.appendChild(el('b', {}, stream ? (i.kind === 'Error' ? 'Problem' : 'Announcement') : i.title));
+  t.appendChild(el('b', {}, stream ? (i.kind === 'Error' ? 'Problem' : 'Announcement')
+    : inStream ? 'Posted a new ' + (i.kind === 'Assignment' ? 'assignment' : 'material') + ': ' + i.title : i.title));
   let sub = fmt(i.date);
   if (i.due) sub += (sub ? ' · ' : '') + 'Due ' + new Date(i.due.year, i.due.month - 1, i.due.day).toLocaleDateString(undefined, { month:'short', day:'numeric' });
   t.appendChild(el('small', {}, sub));
@@ -207,9 +208,9 @@ function render() {
     const b = el('div', { className:'banner', style:'background:' + BANNERS[hash(current.name) % BANNERS.length] });
     b.appendChild(el('h1', {}, current.name)); b.appendChild(el('p', {}, current.section));
     root.appendChild(b);
-    const s = items.filter(i => i.kind === 'Announcement' || i.kind === 'Error');
-    if (!s.length) status('No announcements.');
-    s.forEach(i => root.appendChild(post(i)));
+    const s = items;
+    if (!s.length) status('Nothing posted yet.');
+    s.forEach(i => root.appendChild(post(i, true)));
   } else {
     const w = items.filter(i => i.kind === 'Assignment' || i.kind === 'Material');
     if (!w.length) status('No classwork posted.');
@@ -259,8 +260,8 @@ async function fetchFile(id, onProgress) {
 function openFile(id, sub, label, dl) {
   // Desktop: preview in a new tab. Phones: download so the device's own viewer opens it.
   const win = (IS_MOBILE || dl) ? null : window.open('', '_blank');
-  sub.textContent = 'Loading…'; toast('Preparing file…');
-  getFileBlob(id, n => toast('Receiving file… ' + mb(n)))
+  sub.textContent = 'Loading…'; toast('Starting download…');
+  getFileBlob(id, n => toast('Downloading… ' + mb(n)))
     .then(f => {
       const viewable = /^(application\/pdf|image\/|text\/)/.test(f.mime);
       if (win && viewable) win.location = URL.createObjectURL(f.blob);
@@ -293,11 +294,12 @@ function saveBytes(bytes, mime, name) {
 const isPdfLike = t => /\.pdf$/i.test(t) || !/\.[a-z0-9]{2,5}$/i.test(t);   // PDFs and Google Docs (sent as PDF)
 function choose(f, sub, label) {
   if (!isPdfLike(f.title)) return openFile(f.id, sub, label);
-  const close = () => $('dlg').classList.remove('on');
-  $('dlgName').textContent = f.title; $('dlg').classList.add('on');
+  const dlg = $('dlg'), close = () => dlg.classList.remove('on');
+  $('dlgName').textContent = f.title; dlg.classList.add('on');
   $('dlgView').onclick = () => { close(); viewPdf(f, sub, label); };
   $('dlgDl').onclick = () => { close(); openFile(f.id, sub, label, true); };
   $('dlgCancel').onclick = close;
+  dlg.onclick = e => { if (e.target === dlg) close(); };   // tap outside to cancel
 }
 async function viewPdf(f, sub, label) {
   const my = ++viewSeq, msg = t => { const m = $('pvMsg'); if (m) m.textContent = t; };
