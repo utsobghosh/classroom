@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Classroom</title>
+<style>
+  :root { --bg:#fff; --card:#fff; --text:#202124; --muted:#5f6368; --blue:#1967d2; --line:#dadce0; --hover:#f1f3f4; --sel:#e8f0fe; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#202124; --card:#2d2e31; --text:#e8eaed; --muted:#9aa0a6; --blue:#8ab4f8; --line:#4a4c50; --hover:#3a3b3f; --sel:#2b3a55; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:'Google Sans',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  header { position:fixed; top:0; left:0; right:0; height:64px; z-index:20; background:var(--bg); border-bottom:1px solid var(--line); display:flex; align-items:center; padding:0 12px; gap:8px; }
+  .burger { width:40px; height:40px; border:0; background:none; color:var(--muted); font-size:1.4rem; cursor:pointer; border-radius:50%; }
+  .burger:hover { background:var(--hover); }
+  .logo { width:34px; height:34px; border-radius:6px; background:#1e8e3e; color:#fff; display:grid; place-items:center; font-weight:700; }
+  .brand { font-size:1.35rem; color:var(--muted); }
+  .crumb { min-width:0; margin-left:6px; line-height:1.2; }
+  .crumb b { display:block; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .crumb small { color:var(--muted); font-size:.78rem; }
+  .tabs { position:fixed; top:64px; left:0; right:0; z-index:15; background:var(--bg); border-bottom:1px solid var(--line); display:flex; justify-content:center; gap:8px; }
+  .tabs button { border:0; background:none; color:var(--muted); font:inherit; font-weight:500; padding:14px 28px; cursor:pointer; border-bottom:3px solid transparent; }
+  .tabs button.on { color:var(--blue); border-bottom-color:var(--blue); }
+  aside { position:fixed; top:64px; bottom:0; left:0; width:290px; background:var(--bg); border-right:1px solid var(--line); overflow-y:auto; padding:8px 12px 20px; z-index:18; transition:transform .2s; }
+  aside h4 { margin:14px 8px 6px; font-size:.8rem; color:var(--muted); font-weight:500; }
+  .cls { display:flex; gap:12px; align-items:center; padding:9px 10px; border-radius:30px; cursor:pointer; }
+  .cls:hover { background:var(--hover); }
+  .cls.on { background:var(--sel); color:var(--blue); }
+  .av { width:36px; height:36px; border-radius:50%; display:grid; place-items:center; color:#fff; font-weight:600; flex:none; }
+  .cls div { min-width:0; line-height:1.25; }
+  .cls b { display:block; font-weight:500; font-size:.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cls small { color:var(--muted); font-size:.75rem; }
+  main { margin:120px 0 40px 290px; padding:20px 24px; }
+  .wrap { max-width:780px; margin:0 auto; }
+  .banner { border-radius:8px; padding:24px 28px; min-height:140px; color:#fff; display:flex; flex-direction:column; justify-content:flex-end; margin-bottom:18px; }
+  .banner h1 { margin:0; font-weight:400; font-size:2rem; }
+  .banner p { margin:4px 0 0; font-size:1.05rem; }
+  h2 { font-size:1.7rem; font-weight:400; color:var(--blue); margin:30px 0 12px; padding-bottom:10px; border-bottom:1px solid var(--blue); }
+  .post { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:16px 20px; margin-bottom:14px; }
+  .head { display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+  .ico { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; color:#fff; flex:none; font-size:1.05rem; }
+  .head b { display:block; font-weight:500; }
+  .head small { color:var(--muted); font-size:.8rem; }
+  .text { white-space:pre-wrap; font-size:.92rem; line-height:1.5; margin:4px 0 12px; word-break:break-word; }
+  .atts { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+  .att { display:flex; justify-content:space-between; border:1px solid var(--line); border-radius:6px; overflow:hidden; cursor:pointer; color:inherit; text-decoration:none; background:var(--card); text-align:left; font:inherit; padding:0; min-height:64px; }
+  .att:hover { background:var(--hover); }
+  .info { padding:10px 14px; min-width:0; }
+  .name { font-weight:500; font-size:.9rem; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; }
+  .type { font-size:.75rem; color:var(--muted); margin-top:3px; }
+  .thumb { width:70px; flex:none; display:grid; place-items:center; color:#fff; font-size:.72rem; font-weight:700; }
+  #status { text-align:center; color:var(--muted); padding:60px 0; }
+  html { -webkit-text-size-adjust:100%; }
+  .att { -webkit-tap-highlight-color:transparent; }
+  .scrim { display:none; }
+  @media (max-width:520px) {
+    .brand { display:none; }
+    .banner { min-height:110px; padding:18px; }
+    .banner h1 { font-size:1.5rem; }
+    .post { padding:14px; }
+    .atts { grid-template-columns:1fr; }
+    h2 { font-size:1.4rem; }
+    aside { width:85%; max-width:320px; }
+  }
+  @media (max-width:900px) {
+    aside { transform:translateX(-100%); }
+    body.nav aside { transform:none; box-shadow:0 0 20px rgba(0,0,0,.4); }
+    body.nav .scrim { display:block; position:fixed; inset:64px 0 0 0; background:rgba(0,0,0,.3); z-index:17; }
+    main { margin-left:0; padding:16px 12px; }
+    .tabs button { padding:14px 18px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <button class="burger" id="burger">☰</button>
+  <div class="logo">C</div><span class="brand">Classroom</span>
+  <div class="crumb"><b id="cName"></b><small id="cSec"></small></div>
+</header>
+<div class="tabs"><button id="tStream" class="on">Stream</button><button id="tWork">Classwork</button></div>
+<aside id="side"><h4>Enrolled</h4><div id="list"></div></aside>
+<div class="scrim" id="scrim"></div>
+<main><div class="wrap"><div id="status">Loading…</div><div id="content"></div></div></main>
+<script>
+const API = 'https://script.google.com/macros/s/AKfycbwAQOSjMXgUlgIFlHEC2xVanGQgx53b17zXWTNCT0fW3ZtIwge9uapEVXBDImFhkzuUhA/exec';
+const DEFAULT_CLASS = 'Math 201';   // class opened first (part of its name)
+
+const api = params => fetch(API + '?' + new URLSearchParams(params))
+  .then(r => r.json()).then(d => { if (d && d.error) throw new Error(d.error); return d; });
+const $ = id => document.getElementById(id);
+const status = m => ($('status').textContent = m || '');
+function el(tag, props, text) { const e = document.createElement(tag); Object.assign(e, props || {}); if (text) e.textContent = text; return e; }
+
+const COLORS = ['#d81b60','#1e8e3e','#1967d2','#e8710a','#9334e6','#00897b','#c5221f','#5f6368'];
+const BANNERS = ['linear-gradient(135deg,#b3175a,#e0467c)','linear-gradient(135deg,#137333,#34a853)','linear-gradient(135deg,#174ea6,#4285f4)','linear-gradient(135deg,#b45309,#f29900)'];
+const TYPES = { pdf:['#d93025','PDF'], doc:['#1a73e8','DOC'], docx:['#1a73e8','DOC'], ppt:['#e8710a','PPT'], pptx:['#e8710a','PPT'],
+  xls:['#1e8e3e','XLS'], xlsx:['#1e8e3e','XLS'], png:['#9334e6','IMG'], jpg:['#9334e6','IMG'], jpeg:['#9334e6','IMG'], mp4:['#c5221f','VID'], txt:['#5f6368','TXT'], zip:['#5f6368','ZIP'] };
+const typeOf = t => TYPES[(t.split('.').pop() || '').toLowerCase()] || ['#1a73e8','FILE'];
+const hash = s => [...s].reduce((a, c) => a + c.charCodeAt(0), 0);
+
+let courses = [], current = null, items = [], tab = 'stream', seq = 0;
+
+function fmt(iso) {
+  if (!iso) return '';
+  const d = new Date(iso), now = new Date();
+  return d.toLocaleDateString(undefined, d.getFullYear() === now.getFullYear() ? { month:'short', day:'numeric' } : { month:'short', day:'numeric', year:'numeric' });
+}
+
+function buildSidebar() {
+  const list = $('list'); list.innerHTML = '';
+  courses.forEach(c => {
+    const row = el('div', { className:'cls' + (current && current.id === c.id ? ' on' : '') });
+    row.appendChild(el('div', { className:'av', style:'background:' + COLORS[hash(c.name) % COLORS.length] }, c.name.trim()[0].toUpperCase()));
+    const t = el('div'); t.appendChild(el('b', {}, c.name)); t.appendChild(el('small', {}, c.section));
+    row.appendChild(t);
+    row.onclick = () => { document.body.classList.remove('nav'); selectCourse(c); };
+    list.appendChild(row);
+  });
+}
+
+function selectCourse(c) {
+  current = c; items = []; buildSidebar();
+  $('cName').textContent = c.name; $('cSec').textContent = c.section;
+  $('content').innerHTML = ''; status('Loading…');
+  const my = ++seq;
+  api({ action:'classwork', courseId:c.id })
+    .then(d => { if (my !== seq) return; items = d.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)); status(''); render(); })
+    .catch(e => status('Error: ' + e.message));
+}
+
+function attachments(files) {
+  const box = el('div', { className:'atts' });
+  files.forEach(f => {
+    const link = f.type === 'link';
+    const [color, label] = link ? ['#5f6368','LINK'] : typeOf(f.title);
+    const card = link ? el('a', { className:'att', href:f.url, target:'_blank' }) : el('button', { className:'att' });
+    const info = el('div', { className:'info' });
+    info.appendChild(el('div', { className:'name' }, f.title));
+    const sub = el('div', { className:'type' }, link ? 'Link' : label);
+    info.appendChild(sub);
+    card.appendChild(info);
+    card.appendChild(el('div', { className:'thumb', style:'background:' + color }, label));
+    if (!link) card.onclick = () => openFile(f.id, sub, label);
+    box.appendChild(card);
+  });
+  return box;
+}
+
+function post(i) {
+  const p = el('div', { className:'post' });
+  const head = el('div', { className:'head' });
+  const stream = i.kind === 'Announcement' || i.kind === 'Error';
+  head.appendChild(el('div', { className:'ico', style:'background:' + (i.kind === 'Assignment' ? '#1967d2' : i.kind === 'Material' ? '#5f6368' : '#d81b60') },
+    i.kind === 'Assignment' ? '📋' : i.kind === 'Material' ? '📘' : '📢'));
+  const t = el('div');
+  t.appendChild(el('b', {}, stream ? (i.kind === 'Error' ? 'Problem' : 'Announcement') : i.title));
+  let sub = fmt(i.date);
+  if (i.due) sub += (sub ? ' · ' : '') + 'Due ' + new Date(i.due.year, i.due.month - 1, i.due.day).toLocaleDateString(undefined, { month:'short', day:'numeric' });
+  t.appendChild(el('small', {}, sub));
+  head.appendChild(t); p.appendChild(head);
+  const body = stream ? (i.kind === 'Error' ? i.title : i.text) : i.text;
+  if (body) p.appendChild(el('div', { className:'text' }, body));
+  if (i.files.length) p.appendChild(attachments(i.files));
+  return p;
+}
+
+function render() {
+  const root = $('content'); root.innerHTML = '';
+  if (tab === 'stream') {
+    const b = el('div', { className:'banner', style:'background:' + BANNERS[hash(current.name) % BANNERS.length] });
+    b.appendChild(el('h1', {}, current.name)); b.appendChild(el('p', {}, current.section));
+    root.appendChild(b);
+    const s = items.filter(i => i.kind === 'Announcement' || i.kind === 'Error');
+    if (!s.length) status('No announcements.');
+    s.forEach(i => root.appendChild(post(i)));
+  } else {
+    const w = items.filter(i => i.kind === 'Assignment' || i.kind === 'Material');
+    if (!w.length) status('No classwork posted.');
+    const by = {};
+    w.forEach(i => (by[i.topic] = by[i.topic] || []).push(i));
+    Object.keys(by).forEach(tp => { root.appendChild(el('h2', {}, tp)); by[tp].forEach(i => root.appendChild(post(i))); });
+  }
+}
+
+function setTab(t) {
+  tab = t; status('');
+  $('tStream').classList.toggle('on', t === 'stream'); $('tWork').classList.toggle('on', t === 'work');
+  if (current) render();
+}
+$('tStream').onclick = () => setTab('stream');
+$('tWork').onclick = () => setTab('work');
+$('burger').onclick = () => document.body.classList.toggle('nav');
+$('scrim').onclick = () => document.body.classList.remove('nav');
+
+const IS_MOBILE = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || matchMedia('(pointer:coarse)').matches;
+
+function openFile(id, sub, label) {
+  // Desktop: preview in a new tab. Phones: download so the device's own viewer opens it.
+  const win = IS_MOBILE ? null : window.open('', '_blank');
+  sub.textContent = 'Loading…';
+  api({ action:'file', id })
+    .then(f => {
+      const bytes = Uint8Array.from(atob(f.data), c => c.charCodeAt(0));
+      const url = URL.createObjectURL(new Blob([bytes], { type:f.mime }));
+      const viewable = /^(application\/pdf|image\/|text\/)/.test(f.mime);
+      if (win && viewable) win.location = url;
+      else {
+        if (win) win.close();
+        const a = el('a', { href:url, download:f.name });
+        document.body.appendChild(a); a.click(); a.remove();
+      }
+      sub.textContent = label;
+    })
+    .catch(e => { if (win) win.close(); sub.textContent = label; status('Could not open file: ' + e.message); });
+}
+
+api({ action:'courses' })
+  .then(c => {
+    courses = c; buildSidebar();
+    const def = c.find(x => (x.name + ' ' + x.section).toLowerCase().includes(DEFAULT_CLASS.toLowerCase())) || c[0];
+    if (def) selectCourse(def); else status('No classes found.');
+  })
+  .catch(e => status('Error: ' + e.message));
+</script>
+</body>
+</html>
